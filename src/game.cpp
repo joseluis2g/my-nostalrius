@@ -1,6 +1,6 @@
 /**
  * Tibia GIMUD Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Alejandro Mujica <alejandrodemujica@gmail.com>
+ * Copyright (C) 2018  Alejandro Mujica <alejandrodemujica@gmail.com> and Mark Samman <mark.samman@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "commands.h"
 #include "creature.h"
 #include "monster.h"
+#include "events.h"
 #include "game.h"
 #include "actions.h"
 #include "iologindata.h"
@@ -44,6 +45,7 @@ extern TalkActions* g_talkActions;
 extern Spells* g_spells;
 extern Vocations g_vocations;
 extern GlobalEvents* g_globalEvents;
+extern Events* g_events;
 
 Game::~Game()
 {
@@ -705,6 +707,10 @@ void Game::playerMoveCreature(Player* player, Creature* movingCreature, const Po
 		}
 	}
 
+	if (!g_events->eventPlayerOnMoveCreature(player, movingCreature, movingCreaturePos, toPos)) {
+		return;
+	}
+
 	ReturnValue ret = internalMoveCreature(*movingCreature, *toTile);
 	if (ret != RETURNVALUE_NOERROR) {
 		player->sendCancelMessage(ret);
@@ -964,6 +970,10 @@ void Game::playerMoveItem(Player* player, const Position& fromPos,
 		return;
 	}
 
+	if (!g_events->eventPlayerOnMoveItem(player, item, count, fromPos, toPos, fromCylinder, toCylinder)) {
+		return;
+	}
+
 	uint8_t toIndex = 0;
 	if (toPos.x == 0xFFFF) {
 		if (toPos.y & 0x40) {
@@ -976,6 +986,8 @@ void Game::playerMoveItem(Player* player, const Position& fromPos,
 	ReturnValue ret = internalMoveItem(fromCylinder, toCylinder, toIndex, item, count, nullptr, 0, player);
 	if (ret != RETURNVALUE_NOERROR) {
 		player->sendCancelMessage(ret);
+	} else {
+		g_events->eventPlayerOnItemMoved(player, item, count, fromPos, toPos, fromCylinder, toCylinder);
 	}
 }
 
@@ -2316,6 +2328,10 @@ void Game::playerRequestTrade(uint32_t playerId, const Position& pos, uint8_t st
 		return;
 	}
 
+	if (!g_events->eventPlayerOnTradeRequest(player, tradePartner, tradeItem)) {
+		return;
+	}
+
 	internalStartTrade(player, tradePartner, tradeItem);
 }
 
@@ -2378,6 +2394,11 @@ void Game::playerAcceptTrade(uint32_t playerId)
 	if (tradePartner->getTradeState() == TRADE_ACCEPT) {
 		Item* tradeItem1 = player->tradeItem;
 		Item* tradeItem2 = tradePartner->tradeItem;
+
+		if (!g_events->eventPlayerOnTradeAccept(player, tradePartner, tradeItem1, tradeItem2)) {
+			internalCloseTrade(player);
+			return;
+		}
 
 		player->setTradeState(TRADE_TRANSFER);
 		tradePartner->setTradeState(TRADE_TRANSFER);
@@ -2507,11 +2528,8 @@ void Game::playerLookInTrade(uint32_t playerId, bool lookAtCounterOffer, uint8_t
 
 	int32_t lookDistance = std::max<int32_t>(Position::getDistanceX(playerPosition, tradeItemPosition),
 	                                         Position::getDistanceY(playerPosition, tradeItemPosition));
-
-	std::stringstream ss;
 	if (index == 0) {
-		ss << "You see " << tradeItem->getDescription(lookDistance);
-		player->sendTextMessage(MESSAGE_INFO_DESCR, ss.str());
+		g_events->eventPlayerOnLookInTrade(player, tradePartner, tradeItem, lookDistance);
 		return;
 	}
 
@@ -2531,8 +2549,7 @@ void Game::playerLookInTrade(uint32_t playerId, bool lookAtCounterOffer, uint8_t
 			}
 
 			if (--index == 0) {
-				ss << "You see " << item->getDescription(lookDistance);
-				player->sendTextMessage(MESSAGE_INFO_DESCR, ss.str());
+				g_events->eventPlayerOnLookInTrade(player, tradePartner, item, lookDistance);
 				return;
 			}
 		}
@@ -2624,52 +2641,7 @@ void Game::playerLookAt(uint32_t playerId, const Position& pos, uint8_t stackPos
 		lookDistance = -1;
 	}
 
-	std::ostringstream ss;
-	ss << "You see " << thing->getDescription(lookDistance);
-
-	if (player->isAccessPlayer()) {
-		Item* item = thing->getItem();
-		if (item) {
-			ss << std::endl << "ItemID: [" << item->getID() << ']';
-
-			uint16_t actionId = item->getActionId();
-			if (actionId != 0) {
-				ss << ", ActionID: [" << actionId << ']';
-			}
-
-			uint16_t movementID = item->getMovementId();
-			if (movementID != 0) {
-				ss << ", MovementID: [" << movementID << ']';
-			}
-
-			ss << '.';
-			const ItemType& it = Item::items[item->getID()];
-
-			if (it.transformEquipTo) {
-				ss << std::endl << "TransformTo: [" << it.transformEquipTo << "] (onEquip).";
-			} else if (it.transformDeEquipTo) {
-				ss << std::endl << "TransformTo: [" << it.transformDeEquipTo << "] (onDeEquip).";
-			}
-
-			if (it.decayTo != -1) {
-				ss << std::endl << "DecayTo: [" << it.decayTo << "].";
-			}
-		}
-
-		if (const Creature* creature = thing->getCreature()) {
-			ss << std::endl << "Health: [" << creature->getHealth() << " / " << creature->getMaxHealth() << ']';
-
-			if (creature->getMaxMana() > 0) {
-				ss << ", Mana: [" << creature->getMana() << " / " << creature->getMaxMana() << ']';
-			}
-
-			ss << '.';
-		}
-
-		ss << std::endl << "Position: [X: " << thingPos.x << "] [Y: " << thingPos.y << "] [Z: " << thingPos.getZ() << "].";
-	}
-
-	player->sendTextMessage(MESSAGE_INFO_DESCR, ss.str());
+	g_events->eventPlayerOnLook(player, pos, thing, stackPos, lookDistance);
 }
 
 void Game::playerLookInBattleList(uint32_t playerId, uint32_t creatureId)
@@ -2704,21 +2676,7 @@ void Game::playerLookInBattleList(uint32_t playerId, uint32_t creatureId)
 		lookDistance = -1;
 	}
 
-	std::ostringstream ss;
-	ss << "You see " << creature->getDescription(lookDistance);
-
-	if (player->isAccessPlayer()) {
-		ss << std::endl << "Health: [" << creature->getHealth() << " / " << creature->getMaxHealth() << ']';
-
-		if (creature->getMaxMana() > 0) {
-			ss << ", Mana: [" << creature->getMana() << " / " << creature->getMaxMana() << ']';
-		}
-
-		ss << '.' << std::endl;
-		ss << "Position: [X: " << creaturePos.x << "] [Y: " << creaturePos.y << "] [Z: " << creaturePos.getZ() << "].";
-	}
-
-	player->sendTextMessage(MESSAGE_INFO_DESCR, ss.str());
+	g_events->eventPlayerOnLookInBattleList(player, creature, lookDistance);
 }
 
 void Game::playerCancelAttackAndFollow(uint32_t playerId)
@@ -2844,6 +2802,10 @@ void Game::playerTurn(uint32_t playerId, Direction dir)
 {
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
+		return;
+	}
+
+	if (!g_events->eventPlayerOnTurn(player, dir)) {
 		return;
 	}
 
@@ -3234,6 +3196,10 @@ void Game::changeSpeed(Creature* creature, int32_t varSpeedDelta)
 
 void Game::internalCreatureChangeOutfit(Creature* creature, const Outfit_t& outfit)
 {
+	if (!g_events->eventCreatureOnChangeOutfit(creature, outfit)) {
+		return;
+	}
+
 	creature->setCurrentOutfit(outfit);
 
 	if (creature->isInvisible()) {
@@ -4323,23 +4289,8 @@ void Game::playerReportBug(uint32_t playerId, const std::string& message)
 	if (!player) {
 		return;
 	}
-
-	if (player->getAccountType() == ACCOUNT_TYPE_NORMAL) {
-		return;
-	}
-
-	std::string fileName = "data/reports/" + player->getName() + " report.txt";
-	FILE* file = fopen(fileName.c_str(), "a");
-	if (!file) {
-		player->sendTextMessage(MESSAGE_EVENT_DEFAULT, "There was an error when processing your report, please contact a gamemaster.");
-		return;
-	}
-
-	const Position& playerPosition = player->getPosition();
-	fprintf(file, "------------------------------\nName: %s [Player Position: %u, %u, %u]\nComment: %s\n", player->getName().c_str(), playerPosition.x, playerPosition.y, playerPosition.z, message.c_str());
-	fclose(file);
-
-	player->sendTextMessage(MESSAGE_EVENT_DEFAULT, "Your report has been sent to " + g_config.getString(ConfigManager::SERVER_NAME) + ".");
+	const Position& position = player->getPosition();
+	g_events->eventPlayerOnReportBug(player, message, position);
 }
 
 void Game::playerDebugAssert(uint32_t playerId, const std::string& assertLine, const std::string& date, const std::string& description, const std::string& comment)

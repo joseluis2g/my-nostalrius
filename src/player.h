@@ -1,6 +1,6 @@
 /**
  * Tibia GIMUD Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Alejandro Mujica <alejandrodemujica@gmail.com>
+ * Copyright (C) 2018 Alejandro Mujica <alejandrodemujica@gmail.com> and Mark Samman <mark.samman@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -524,7 +524,7 @@ class Player final : public Creature, public Cylinder
 		void onTargetCreatureGainHealth(Creature* target, int32_t points) final;
 		bool onKilledCreature(Creature* target, bool lastHit = true) final;
 		void onGainExperience(uint64_t gainExp, Creature* target) final;
-		void onGainSharedExperience(uint64_t gainExp);
+		void onGainSharedExperience(uint64_t gainExp, Creature* source);
 		void onAttackedCreatureBlockHit(BlockType_t blockType) final;
 		void onBlockHit() final;
 		void onChangeZone(ZoneType_t zone) final;
@@ -903,8 +903,8 @@ class Player final : public Creature, public Cylinder
 		void checkTradeState(const Item* item);
 		bool hasCapacity(const Item* item, uint32_t count) const;
 
-		void gainExperience(uint64_t exp);
-		void addExperience(uint64_t exp, bool sendText = false, bool applyStages = true);
+		void gainExperience(uint64_t gainExp, Creature* source);
+		void addExperience(Creature* source, uint64_t exp, bool sendText = false);
 		void removeExperience(uint64_t exp);
 
 		void updateInventoryWeight();

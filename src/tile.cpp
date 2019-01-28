@@ -691,7 +691,7 @@ void Tile::addThing(int32_t, Thing* thing)
 		g_game.map.clearSpectatorCache();
 		creature->setParent(this);
 		CreatureVector* creatures = makeCreatures();
-		creatures->insert(creatures->end(), creature);
+		creatures->insert(creatures->begin(), creature);
 	} else {
 		Item* item = thing->getItem();
 		if (item == nullptr) {
@@ -1287,7 +1287,7 @@ void Tile::internalAddThing(uint32_t, Thing* thing)
 	if (creature) {
 		g_game.map.clearSpectatorCache();
 		CreatureVector* creatures = makeCreatures();
-		creatures->insert(creatures->end(), creature);
+		creatures->insert(creatures->begin(), creature);
 	} else {
 		Item* item = thing->getItem();
 		if (item == nullptr) {

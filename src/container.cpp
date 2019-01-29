@@ -403,6 +403,20 @@ Cylinder* Container::queryDestination(int32_t& index, const Thing &thing, Item**
 		return this;
 	}
 
+	if (index != INDEX_WHEREEVER) {
+		Item* itemFromIndex = getItemByIndex(index);
+		if (itemFromIndex) {
+			*destItem = itemFromIndex;
+		}
+
+		Cylinder* subCylinder = dynamic_cast<Cylinder*>(*destItem);
+		if (subCylinder) {
+			index = INDEX_WHEREEVER;
+			*destItem = nullptr;
+			return subCylinder;
+		}
+	}
+
 	if (g_config.getBoolean(ConfigManager::STACK_CUMULATIVES)) {
 		bool autoStack = !hasBitSet(FLAG_IGNOREAUTOSTACK, flags);
 		if (autoStack && item->isStackable() && item->getParent() != this) {
@@ -418,20 +432,7 @@ Cylinder* Container::queryDestination(int32_t& index, const Thing &thing, Item**
 			}
 		}
 	}
-
-	if (index != INDEX_WHEREEVER) {
-		Item* itemFromIndex = getItemByIndex(index);
-		if (itemFromIndex) {
-			*destItem = itemFromIndex;
-		}
-
-		Cylinder* subCylinder = dynamic_cast<Cylinder*>(*destItem);
-		if (subCylinder) {
-			index = INDEX_WHEREEVER;
-			*destItem = nullptr;
-			return subCylinder;
-		}
-	}
+	
 	return this;
 }
 

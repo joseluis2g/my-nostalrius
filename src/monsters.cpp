@@ -372,6 +372,16 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 			combat->setParam(COMBAT_PARAM_TYPE, COMBAT_PHYSICALDAMAGE);
 			combat->setParam(COMBAT_PARAM_BLOCKARMOR, 1);
 			combat->setParam(COMBAT_PARAM_BLOCKSHIELD, 1);
+			uint32_t tD = this->getMonsterType(description)->info.targetDistance;
+			if (tD == 1) {
+				if (sb.range > 1) {
+					combat->setOrigin(ORIGIN_RANGED);
+				} else {
+					combat->setOrigin(ORIGIN_MELEE);
+				}
+			} else if (tD > 1 && sb.range > 1) {
+				combat->setOrigin(ORIGIN_RANGED);
+			}
 		} else if (tmpName == "bleed") {
 			combat->setParam(COMBAT_PARAM_TYPE, COMBAT_PHYSICALDAMAGE);
 		} else if (tmpName == "poison" || tmpName == "earth") {

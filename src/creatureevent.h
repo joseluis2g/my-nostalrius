@@ -33,6 +33,8 @@ enum CreatureEventType_t {
 	CREATURE_EVENT_DEATH,
 	CREATURE_EVENT_KILL,
 	CREATURE_EVENT_ADVANCE,
+	CREATURE_EVENT_HEALTHCHANGE,
+	CREATURE_EVENT_MANACHANGE,
 	CREATURE_EVENT_EXTENDED_OPCODE, // otclient additional network opcodes
 };
 
@@ -97,6 +99,8 @@ class CreatureEvent final : public Event
 		bool executeOnDeath(Creature* creature, Item* corpse, Creature* killer, Creature* mostDamageKiller, bool lastHitUnjustified, bool mostDamageUnjustified);
 		void executeOnKill(Creature* creature, Creature* target);
 		bool executeAdvance(Player* player, skills_t, uint32_t, uint32_t);
+		void executeHealthChange(Creature* creature, Creature* attacker, CombatDamage& damage);
+		void executeManaChange(Creature* creature, Creature* attacker, CombatDamage& damage);
 		void executeExtendedOpcode(Player* player, uint8_t opcode, const std::string& buffer);
 		//
 

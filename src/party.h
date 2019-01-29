@@ -66,7 +66,7 @@ class Party
 			return memberList.empty() && inviteList.empty();
 		}
 
-		void shareExperience(uint64_t experience);
+		void shareExperience(uint64_t experience, Creature* source/* = nullptr*/);
 		bool setSharedExperience(Player* player, bool sharedExpActive);
 		bool isSharedExperienceActive() const {
 			return sharedExpActive;

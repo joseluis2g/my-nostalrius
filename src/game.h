@@ -484,6 +484,7 @@ class Game
 		BedItem* getBedBySleeper(uint32_t guid) const;
 		void setBedSleeper(BedItem* bed, uint32_t guid);
 		void removeBedSleeper(uint32_t guid);
+		bool reload(ReloadTypes_t reloadType);
 
 		Groups groups;
 		Map map;

@@ -22,7 +22,6 @@
 #include "pugicast.h"
 
 #include "items.h"
-#include "commands.h"
 #include "creature.h"
 #include "monster.h"
 #include "events.h"
@@ -86,7 +85,6 @@ void Game::setGameState(GameState_t newState)
 	gameState = newState;
 	switch (newState) {
 		case GAME_STATE_INIT: {
-			commands.loadFromXml();
 
 			loadExperienceStages();
 
@@ -221,7 +219,7 @@ Thing* Game::internalGetThing(Player* player, const Position& pos, int32_t index
 			}
 
 			case STACKPOS_USEITEM: {
-				thing = tile->getUseItem();
+				thing = tile->getUseItem(index);
 				break;
 			}
 
@@ -233,7 +231,7 @@ Thing* Game::internalGetThing(Player* player, const Position& pos, int32_t index
 			case STACKPOS_USETARGET: {
 				thing = tile->getTopCreature();
 				if (!thing) {
-					thing = tile->getUseItem();
+					thing = tile->getUseItem(index);
 				}
 				break;
 			}
@@ -2859,19 +2857,15 @@ void Game::playerSay(uint32_t playerId, uint16_t channelId, SpeakClasses type,
 
 	player->resetIdleTime();
 
+	if (playerSaySpell(player, type, text)) {
+		return;
+	}
+
 	uint32_t muteTime = player->isMuted();
 	if (muteTime > 0) {
 		std::ostringstream ss;
 		ss << "You are still muted for " << muteTime << " seconds.";
 		player->sendTextMessage(MESSAGE_STATUS_SMALL, ss.str());
-		return;
-	}
-
-	if (playerSayCommand(player, text)) {
-		return;
-	}
-
-	if (playerSaySpell(player, type, text)) {
 		return;
 	}
 
@@ -2926,23 +2920,6 @@ void Game::playerSay(uint32_t playerId, uint16_t channelId, SpeakClasses type,
 		default:
 			break;
 	}
-}
-
-bool Game::playerSayCommand(Player* player, const std::string& text)
-{
-	if (text.empty()) {
-		return false;
-	}
-
-	char firstCharacter = text.front();
-	for (char commandTag : commandTags) {
-		if (commandTag == firstCharacter) {
-			if (commands.exeCommand(*player, text)) {
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 bool Game::playerSaySpell(Player* player, SpeakClasses type, const std::string& text)
@@ -3369,6 +3346,17 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 			return false;
 		}
 
+		if (damage.origin != ORIGIN_NONE) {
+			const auto& events = target->getCreatureEvents(CREATURE_EVENT_HEALTHCHANGE);
+			if (!events.empty()) {
+				for (CreatureEvent* creatureEvent : events) {
+					creatureEvent->executeHealthChange(target, attacker, damage);
+				}
+				damage.origin = ORIGIN_NONE;
+				return combatChangeHealth(attacker, target, damage);
+			}
+		}
+
 		int32_t realHealthChange = target->getHealth();
 		target->gainHealth(attacker, damage.value);
 		realHealthChange = target->getHealth() - realHealthChange;
@@ -3406,18 +3394,30 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		if (healthChange == 0) {
 			return true;
 		}
-
+		Player* targetPlayer = target->getPlayer();
 		SpectatorVec list;
 		if (target->hasCondition(CONDITION_MANASHIELD) && damage.type != COMBAT_UNDEFINEDDAMAGE) {
-			int32_t manaDamage = std::min<int32_t>(target->getMana(), healthChange);
+			int32_t manaDamage = std::min<int32_t>(targetPlayer->getMana(), healthChange);
 			if (manaDamage != 0) {
-				target->drainMana(attacker, manaDamage);
+				if (damage.origin != ORIGIN_NONE) {
+					const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
+					if (!events.empty()) {
+						for (CreatureEvent* creatureEvent : events) {
+							creatureEvent->executeManaChange(target, attacker, damage);
+						}
+						healthChange = damage.value;
+						if (healthChange == 0) {
+							return true;
+						}
+						manaDamage = std::min<int32_t>(targetPlayer->getMana(), healthChange);
+					}
+				}
+				targetPlayer->drainMana(attacker, manaDamage);
 				map.getSpectators(list, targetPos, true, true);
 				addMagicEffect(list, targetPos, CONST_ME_LOSEENERGY);
 
 				std::string damageString = std::to_string(manaDamage);
 
-				Player* targetPlayer = target->getPlayer();
 				if (targetPlayer) {
 					std::stringstream ss;
 					if (!attacker) {
@@ -3455,19 +3455,11 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		realDamage = damage.value;
 		if (realDamage == 0) {
 			return true;
-		} else if (realDamage >= targetHealth) {
-			for (CreatureEvent* creatureEvent : target->getCreatureEvents(CREATURE_EVENT_PREPAREDEATH)) {
-				if (!creatureEvent->executeOnPrepareDeath(target, attacker)) {
-					return false;
-				}
-			}
 		}
 
-		target->drainHealth(attacker, realDamage);
 		if (list.empty()) {
 			map.getSpectators(list, targetPos, true, true);
 		}
-		addCreatureHealth(list, target);
 
 		TextColor_t color = TEXTCOLOR_NONE;
 		uint8_t hitEffect;
@@ -3480,8 +3472,6 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 
 		if (color != TEXTCOLOR_NONE) {
 			std::string damageString = std::to_string(realDamage) + (realDamage != 1 ? " hitpoints" : " hitpoint");
-
-			Player* targetPlayer = target->getPlayer();
 			if (targetPlayer) {
 				std::stringstream ss;
 				if (!attacker) {
@@ -3500,15 +3490,41 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 				tmpPlayer->sendAnimatedText(targetPos, color, realDamageStr);
 			}
 		}
+
+		if (realDamage >= targetHealth) {
+			for (CreatureEvent* creatureEvent : target->getCreatureEvents(CREATURE_EVENT_PREPAREDEATH)) {
+				if (!creatureEvent->executeOnPrepareDeath(target, attacker)) {
+					return false;
+				}
+			}
+		}
+
+		target->drainHealth(attacker, realDamage);
+		addCreatureHealth(list, target);
 	}
 
 	return true;
 }
 
-bool Game::combatChangeMana(Creature* attacker, Creature* target, int32_t manaChange)
+bool Game::combatChangeMana(Creature* attacker, Creature* target, CombatDamage& damage)
 {
+	Player* targetPlayer = target->getPlayer();
+	if (!targetPlayer) {
+		return true;
+	}
+	int32_t manaChange = damage.value;
 	if (manaChange > 0) {
-		target->changeMana(manaChange);
+		if (damage.origin != ORIGIN_NONE) {
+			const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
+			if (!events.empty()) {
+				for (CreatureEvent* creatureEvent : events) {
+					creatureEvent->executeManaChange(target, attacker, damage);
+				}
+				damage.origin = ORIGIN_NONE;
+				return combatChangeMana(attacker, target, damage);
+			}
+		}
+		targetPlayer->changeMana(manaChange);
 	} else {
 		const Position& targetPos = target->getPosition();
 		if (!target->isAttackable()) {
@@ -3525,7 +3541,7 @@ bool Game::combatChangeMana(Creature* attacker, Creature* target, int32_t manaCh
 			attackerPlayer = nullptr;
 		}
 
-		int32_t manaLoss = std::min<int32_t>(target->getMana(), -manaChange);
+		int32_t manaLoss = std::min<int32_t>(targetPlayer->getMana(), -manaChange);
 		BlockType_t blockType = target->blockHit(attacker, COMBAT_MANADRAIN, manaLoss);
 		if (blockType != BLOCK_NONE) {
 			addMagicEffect(targetPos, CONST_ME_POFF);
@@ -3536,11 +3552,20 @@ bool Game::combatChangeMana(Creature* attacker, Creature* target, int32_t manaCh
 			return true;
 		}
 
-		target->drainMana(attacker, manaLoss);
+		if (damage.origin != ORIGIN_NONE) {
+			const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
+			if (!events.empty()) {
+				for (CreatureEvent* creatureEvent : events) {
+					creatureEvent->executeManaChange(target, attacker, damage);
+				}
+				damage.origin = ORIGIN_NONE;
+				return combatChangeMana(attacker, target, damage);
+			}
+		}
+
+		targetPlayer->drainMana(attacker, manaLoss);
 
 		std::string damageString = std::to_string(manaLoss);
-	
-		Player* targetPlayer = target->getPlayer();
 
 		SpectatorVec list;
 		map.getSpectators(list, targetPos, false, true);
@@ -3778,21 +3803,6 @@ void Game::getWorldLightInfo(LightInfo& lightInfo) const
 {
 	lightInfo.level = lightLevel;
 	lightInfo.color = 0xD7;
-}
-
-void Game::addCommandTag(char tag)
-{
-	for (char commandTag : commandTags) {
-		if (commandTag == tag) {
-			return;
-		}
-	}
-	commandTags.push_back(tag);
-}
-
-void Game::resetCommandTag()
-{
-	commandTags.clear();
 }
 
 void Game::shutdown()
@@ -4164,7 +4174,7 @@ void Game::playerEnableSharedPartyExperience(uint32_t playerId, bool sharedExpAc
 	}
 
 	Party* party = player->getParty();
-	if (!party || player->hasCondition(CONDITION_INFIGHT)) {
+	if (!party || (player->hasCondition(CONDITION_INFIGHT) && player->getZone() != ZONE_PROTECTION)) {
 		return;
 	}
 

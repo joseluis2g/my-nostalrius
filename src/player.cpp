@@ -406,7 +406,7 @@ void Player::setVarStats(stats_t stat, int32_t modifier)
 
 		case STAT_MAXMANAPOINTS: {
 			if (getMana() > getMaxMana()) {
-				Creature::changeMana(getMaxMana() - getMana());
+				changeMana(getMaxMana() - getMana());
 			}
 			break;
 		}
@@ -1218,7 +1218,12 @@ void Player::drainHealth(Creature* attacker, int32_t damage)
 
 void Player::drainMana(Creature* attacker, int32_t manaLoss)
 {
-	Creature::drainMana(attacker, manaLoss);
+	onAttacked();
+	changeMana(-manaLoss);
+
+	if (attacker) {
+		addDamagePoints(attacker, manaLoss);
+	}
 	sendStats();
 }
 
@@ -2703,10 +2708,10 @@ void Player::internalAddThing(uint32_t index, Thing* thing)
 uint32_t Player::checkPlayerKilling()
 {
 	time_t today = std::time(nullptr);
-	uint32_t lastDay = 0;
-	uint32_t lastWeek = 0;
-	uint32_t lastMonth = 0;
-	uint64_t egibleMurders = 0;
+	int32_t lastDay = 0;
+	int32_t lastWeek = 0;
+	int32_t lastMonth = 0;
+	int64_t egibleMurders = 0;
 
 	time_t dayTimestamp = today - (24 * 60 * 60);
 	time_t weekTimestamp = today - (7 * 24 * 60 * 60);
@@ -3194,7 +3199,11 @@ void Player::changeHealth(int32_t healthChange, bool sendHealthChange/* = true*/
 void Player::changeMana(int32_t manaChange)
 {
 	if (!hasFlag(PlayerFlag_HasInfiniteMana)) {
-		Creature::changeMana(manaChange);
+		if (manaChange > 0) {
+			mana += std::min<int32_t>(manaChange, getMaxMana() - mana);
+		} else {
+			mana = std::max<int32_t>(0, mana + manaChange);
+		}
 	}
 
 	sendStats();
@@ -3307,6 +3316,18 @@ void Player::addAttacked(const Player* attacked)
 	}
 
 	attackedSet.insert(attacked->id);
+}
+
+void Player::removeAttacked(const Player* attacked)
+{
+	if (!attacked || attacked == this) {
+		return;
+	}
+
+	auto it = attackedSet.find(attacked->guid);
+	if (it != attackedSet.end()) {
+		attackedSet.erase(it);
+	}
 }
 
 void Player::clearAttacked()

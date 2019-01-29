@@ -33,6 +33,7 @@ extern Events* g_events;
 CombatDamage Combat::getCombatDamage(Creature* creature) const
 {
 	CombatDamage damage;
+	damage.origin = params.origin;
 	damage.type = params.combatType;
 	if (formulaType == COMBAT_FORMULA_DAMAGE) {
 		damage.min = static_cast<int32_t>(mina);
@@ -422,7 +423,7 @@ CallBack* Combat::getCallback(CallBackParam_t key)
 	return nullptr;
 }
 
-bool Combat::CombatHealthFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data)
+void Combat::CombatHealthFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data)
 {
 	assert(data);
 	CombatDamage damage = *data;
@@ -439,18 +440,16 @@ bool Combat::CombatHealthFunc(Creature* caster, Creature* target, const CombatPa
 	}
 
 	if (g_game.combatBlockHit(damage, caster, target, params.blockedByShield, params.blockedByArmor, params.itemId != 0)) {
-		return false;
+		return;
 	}
 
 	if (g_game.combatChangeHealth(caster, target, damage)) {
-		CombatConditionFunc(caster, target, params, nullptr);
+		CombatConditionFunc(caster, target, params, &damage);
 		CombatDispelFunc(caster, target, params, nullptr);
 	}
-
-	return true;
 }
 
-bool Combat::CombatManaFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data)
+void Combat::CombatManaFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data)
 {
 	assert(data);
 	CombatDamage damage = *data;
@@ -465,16 +464,18 @@ bool Combat::CombatManaFunc(Creature* caster, Creature* target, const CombatPara
 		}
 	}
 
-	if (g_game.combatChangeMana(caster, target, damage.value)) {
+	if (g_game.combatChangeMana(caster, target, damage)) {
 		CombatConditionFunc(caster, target, params, nullptr);
 		CombatDispelFunc(caster, target, params, nullptr);
 	}
-
-	return true;
 }
 
-bool Combat::CombatConditionFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage*)
+void Combat::CombatConditionFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data)
 {
+	if (params.origin == ORIGIN_MELEE && data && data->value == 0) {
+		return;
+	}
+
 	for (const auto& condition : params.conditionList) {
 		if (caster == target || !target->isImmune(condition->getType())) {
 			Condition* conditionCopy = condition->clone();
@@ -486,21 +487,17 @@ bool Combat::CombatConditionFunc(Creature* caster, Creature* target, const Comba
 			target->addCombatCondition(conditionCopy);
 		}
 	}
-
-	return true;
 }
 
-bool Combat::CombatDispelFunc(Creature*, Creature* target, const CombatParams& params, CombatDamage*)
+void Combat::CombatDispelFunc(Creature*, Creature* target, const CombatParams& params, CombatDamage*)
 {
 	target->removeCombatCondition(params.dispelType);
-	return true;
 }
 
-bool Combat::CombatNullFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage*)
+void Combat::CombatNullFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage*)
 {
 	CombatConditionFunc(caster, target, params, nullptr);
 	CombatDispelFunc(caster, target, params, nullptr);
-	return true;
 }
 
 void Combat::combatTileEffects(const SpectatorVec& list, Creature* caster, Tile* tile, const CombatParams& params)
@@ -632,6 +629,8 @@ void Combat::CombatFunc(Creature* caster, const Position& pos, const AreaCombat*
 	const int32_t rangeY = maxY + Map::maxViewportY;
 	g_game.map.getSpectators(list, pos, true, true, rangeX, rangeX, rangeY, rangeY);
 
+	postCombatEffects(caster, pos, params);
+
 	uint16_t decreasedDamage = 0;
 	const uint16_t maximumDecreasedDamage = params.maximumDecreasedDamage;
 
@@ -721,6 +720,8 @@ void Combat::CombatFunc(Creature* caster, const Position& pos, const AreaCombat*
 			continue;
 		}
 
+		combatTileEffects(list, caster, tile, params);
+
 		if (CreatureVector* creatures = tile->getCreatures()) {
 			const Creature* topCreature = tile->getTopCreature();
 			for (Creature* creature : *creatures) {
@@ -746,9 +747,7 @@ void Combat::CombatFunc(Creature* caster, const Position& pos, const AreaCombat*
 				}
 			}
 		}
-		combatTileEffects(list, caster, tile, params);
 	}
-	postCombatEffects(caster, pos, params);
 }
 
 void Combat::doCombat(Creature* caster, Creature* target) const
@@ -876,6 +875,7 @@ bool Combat::closeAttack(Creature* attacker, Creature* target, fightMode_t fight
 	combatDamage.type = combatParams.combatType;
 	int32_t totalDamage = Combat::getTotalDamage(skillValue, attackValue, fightMode);
 	combatDamage.value = totalDamage;
+	combatDamage.origin = ORIGIN_MELEE;
 
 	bool hit = Combat::doCombatHealth(attacker, target, combatDamage, combatParams);
 
@@ -991,6 +991,7 @@ bool Combat::rangeAttack(Creature* attacker, Creature* target, fightMode_t fight
 		CombatDamage combatDamage;
 		combatDamage.type = combatParams.combatType;
 		combatDamage.value = Combat::getTotalDamage(skillValue, attackValue, fightMode);
+		combatDamage.origin = ORIGIN_RANGED;
 
 		if (weapon) {
 			hitChance = 75; // throwables and such
@@ -1036,9 +1037,9 @@ bool Combat::rangeAttack(Creature* attacker, Creature* target, fightMode_t fight
 		distance *= 15;
 
 		bool hit = false;
-
-		if (rand() % distance <= skillValue) {
-			hit = rand() % 100 <= hitChance;
+		int32_t random = rand();
+		if (random % distance <= static_cast<int32_t>(skillValue)) {
+			hit = random % 100 <= hitChance;
 		}
 
 		if (Player* player = attacker->getPlayer()) {
@@ -1130,6 +1131,7 @@ bool Combat::rangeAttack(Creature* attacker, Creature* target, fightMode_t fight
 		CombatDamage combatDamage;
 		combatDamage.type = combatParams.combatType;
 		combatDamage.value = -(variation + weapon->getAttackStrength());
+		combatDamage.origin = ORIGIN_RANGED;
 
 		g_game.addDistanceEffect(attackerPos, targetPos, distanceEffect);
 		Combat::doCombatHealth(attacker, target, combatDamage, combatParams);
@@ -1243,7 +1245,7 @@ bool Combat::canUseWeapon(Player* player, Item* weapon)
 		return false;
 	}
 
-	if (!player->hasFlag(PlayerFlag_HasInfiniteMana) && player->getMana() < weapon->getManaConsumption()) {
+	if (!player->hasFlag(PlayerFlag_HasInfiniteMana) && static_cast<int32_t>(player->getMana()) < weapon->getManaConsumption()) {
 		return false;
 	}
 
@@ -1278,13 +1280,13 @@ bool Combat::doCombatHealth(Creature* caster, Creature* target, CombatDamage& da
 	}
 
 	if (canCombat) {
-		canCombat = CombatHealthFunc(caster, target, params, &damage);
-		if (params.targetCallback) {
-			params.targetCallback->onTargetCombat(caster, target);
-		}
-
 		if (caster && params.distanceEffect != CONST_ANI_NONE) {
 			addDistanceEffect(caster->getPosition(), target->getPosition(), params.distanceEffect);
+		}
+
+		CombatHealthFunc(caster, target, params, &damage);
+		if (params.targetCallback) {
+			params.targetCallback->onTargetCombat(caster, target);
 		}
 	}
 
@@ -1304,13 +1306,13 @@ void Combat::doCombatMana(Creature* caster, Creature* target, CombatDamage& dama
 	}
 
 	if (canCombat) {
+		if (caster && params.distanceEffect != CONST_ANI_NONE) {
+			addDistanceEffect(caster->getPosition(), target->getPosition(), params.distanceEffect);
+		}
+
 		CombatManaFunc(caster, target, params, &damage);
 		if (params.targetCallback) {
 			params.targetCallback->onTargetCombat(caster, target);
-		}
-
-		if (caster && params.distanceEffect != CONST_ANI_NONE) {
-			addDistanceEffect(caster->getPosition(), target->getPosition(), params.distanceEffect);
 		}
 	}
 }
@@ -1333,13 +1335,13 @@ void Combat::doCombatCondition(Creature* caster, Creature* target, const CombatP
 	}
 
 	if (canCombat) {
+		if (caster && params.distanceEffect != CONST_ANI_NONE) {
+			addDistanceEffect(caster->getPosition(), target->getPosition(), params.distanceEffect);
+		}
+
 		CombatConditionFunc(caster, target, params, nullptr);
 		if (params.targetCallback) {
 			params.targetCallback->onTargetCombat(caster, target);
-		}
-
-		if (caster && params.distanceEffect != CONST_ANI_NONE) {
-			addDistanceEffect(caster->getPosition(), target->getPosition(), params.distanceEffect);
 		}
 	}
 }

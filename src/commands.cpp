@@ -21,7 +21,6 @@
 
 #include <fstream>
 
-#include "commands.h"
 #include "player.h"
 #include "npc.h"
 #include "game.h"

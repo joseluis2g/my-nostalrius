@@ -1,8 +1,13 @@
-# Nostalrius 7.7
+# Nostalrius 7.7 [![Build status](https://ci.appveyor.com/api/projects/status/599x38f3a0luessl?svg=true)](https://ci.appveyor.com/project/joseluis2g/my-nostalrius "Download builds for Windows")
 Nostalrius is a 7.7 clone project that has been in development for a long time, it is based on TheForgottenServer 1.2 fork.
 
   - You can find here the most complete 7.72 Tibia replica that has ever been made
   - Formulas, monsters behavior, the map, everything!
+
+### Getting Started
+
+* [Compiling](https://github.com/otland/forgottenserver/wiki/Compiling), alternatively download [AppVeyor builds for Windows](https://ci.appveyor.com/project/joseluis2g/my-nostalrius)
+* [Scripting Reference](https://github.com/otland/forgottenserver/wiki/Script-Interface)
 
 # Credits
 

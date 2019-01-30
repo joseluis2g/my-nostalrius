@@ -1661,6 +1661,9 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::MAX_PACKETS_PER_SECOND)
 	registerEnumIn("configKeys", ConfigManager::NEWBIE_TOWN)
 	registerEnumIn("configKeys", ConfigManager::NEWBIE_LEVEL_THRESHOLD)
+	registerEnumIn("configKeys", ConfigManager::BLOCK_HEIGHT)
+	registerEnumIn("configKeys", ConfigManager::DROP_ITEMS)
+	
 
 	// os
 	registerMethod("os", "mtime", LuaScriptInterface::luaSystemTime);

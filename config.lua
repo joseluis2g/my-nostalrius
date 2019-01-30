@@ -36,6 +36,7 @@ replaceKickOnLogin = true
 maxPacketsPerSecond = -1
 autoStackCumulatives = false
 blockHeight = false
+dropItems = false
 moneyRate = 1
 
 -- Deaths

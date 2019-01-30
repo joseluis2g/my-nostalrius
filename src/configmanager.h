@@ -42,6 +42,7 @@ class ConfigManager
 			STACK_CUMULATIVES,
 			BLOCK_HEIGHT,
 			UH_TRAP,
+			DROP_ITEMS,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};

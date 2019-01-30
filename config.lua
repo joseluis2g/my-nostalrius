@@ -35,8 +35,9 @@ statusTimeout = 5000
 replaceKickOnLogin = true
 maxPacketsPerSecond = -1
 autoStackCumulatives = false
-blockHeight = true
+blockHeight = false
 uhTrap = true
+dropItems = false
 moneyRate = 1
 
 -- Deaths

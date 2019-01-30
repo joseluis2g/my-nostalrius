@@ -79,6 +79,7 @@ bool ConfigManager::load()
 	boolean[STACK_CUMULATIVES] = getGlobalBoolean(L, "autoStackCumulatives", false);
 	boolean[BLOCK_HEIGHT] = getGlobalBoolean(L, "blockHeight", false);
 	boolean[UH_TRAP] = getGlobalBoolean(L, "uhTrap", false);
+	boolean[DROP_ITEMS] = getGlobalBoolean(L, "dropItems", false);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");

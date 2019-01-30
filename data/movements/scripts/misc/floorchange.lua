@@ -80,8 +80,8 @@ function onStepIn(creature, item, position, fromPosition)
 	if tile == nil or tile:getGround() == nil then
 		return false
 	end
-	
-	creature:teleportTo(relPos)
+
+	Tile(item:getPosition()):relocateTo(relPos)
 	if item:getId() == 293 then
 		item:transform(294)
 		item:decay()

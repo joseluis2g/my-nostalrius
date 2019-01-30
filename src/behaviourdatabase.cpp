@@ -820,10 +820,11 @@ void BehaviourDatabase::checkAction(const NpcBehaviourAction* action, Player* pl
 				}
 			} while (amount);
 		} else {
-
+			/*
 			if (it.charges && (data < static_cast<int32_t>(it.charges))) {
 				data = it.charges;
 			}
+			*/
 
 			for (int32_t i = 0; i < std::max<int32_t>(1, amount); i++) {
 				Item* item = Item::CreateItem(itemId, data);

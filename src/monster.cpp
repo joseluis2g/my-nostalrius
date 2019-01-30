@@ -1159,8 +1159,8 @@ bool Monster::getNextStep(Direction& direction, uint32_t& flags)
 	if ((!followCreature || !hasFollowPath) && (!isSummon() || !isMasterInRange)) {
 		if (OTSYS_TIME() >= nextDanceStepRound) {
 			updateLookDirection();
-			nextDanceStepRound = OTSYS_TIME() + 200 + getStepDuration();
-
+			nextDanceStepRound = OTSYS_TIME() + getStepDuration();
+			
 			//choose a random direction
 			result = getRandomStep(getPosition(), direction);
 		}
@@ -2004,33 +2004,45 @@ void Monster::updateLookDirection()
 		} else {
 			Direction dir = getDirection();
 			if (offsetx < 0 && offsety < 0) {
+				if (offsetx == -1 && offsety == -1) {
+					if (dir == DIRECTION_NORTH) {
+						newDir = DIRECTION_WEST;
+					}
+				}
 				if (dir == DIRECTION_SOUTH) {
-					newDir = DIRECTION_WEST;
-				} else if (dir == DIRECTION_NORTH) {
 					newDir = DIRECTION_WEST;
 				} else if (dir == DIRECTION_EAST) {
 					newDir = DIRECTION_NORTH;
 				}
 			} else if (offsetx < 0 && offsety > 0) {
+				if (offsetx == -1 && offsety == 1) {
+					if (dir == DIRECTION_SOUTH) {
+						newDir = DIRECTION_WEST;
+					}
+				}
 				if (dir == DIRECTION_NORTH) {
-					newDir = DIRECTION_WEST;
-				} else if (dir == DIRECTION_SOUTH) {
 					newDir = DIRECTION_WEST;
 				} else if (dir == DIRECTION_EAST) {
 					newDir = DIRECTION_SOUTH;
 				}
 			} else if (offsetx > 0 && offsety < 0) {
+				if (offsetx == 1 && offsety == -1) {
+					if (dir == DIRECTION_NORTH) {
+						newDir = DIRECTION_EAST;
+					}
+				}
 				if (dir == DIRECTION_SOUTH) {
-					newDir = DIRECTION_EAST;
-				} else if (dir == DIRECTION_NORTH) {
 					newDir = DIRECTION_EAST;
 				} else if (dir == DIRECTION_WEST) {
 					newDir = DIRECTION_NORTH;
 				}
 			} else {
+				if (offsetx == 1 && offsety == 1) {
+					if (dir == DIRECTION_SOUTH) {
+						newDir = DIRECTION_EAST;
+					}
+				}
 				if (dir == DIRECTION_NORTH) {
-					newDir = DIRECTION_EAST;
-				} else if (dir == DIRECTION_SOUTH) {
 					newDir = DIRECTION_EAST;
 				} else if (dir == DIRECTION_WEST) {
 					newDir = DIRECTION_SOUTH;

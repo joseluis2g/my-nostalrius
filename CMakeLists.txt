@@ -5,19 +5,14 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 project(my-nostalrius)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(cotire)
 
-# Initialize CXXFLAGS.
-set(CMAKE_CXX_FLAGS                "-Wall -Werror -pipe")
-set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g")
-set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "-Ofast -march=native -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+add_compile_options(-Wall -Werror -pipe -fvisibility=hidden)
 
 if (CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
+    add_compile_options(-fno-strict-aliasing)
 endif()
 
 include(FindCXX11)
@@ -40,13 +35,13 @@ else()
     find_package(Lua)
 endif()
 
-find_package(Boost 1.53.0 COMPONENTS system REQUIRED)
+find_package(Boost 1.53.0 COMPONENTS system filesystem REQUIRED)
 
 include(src/CMakeLists.txt)
 add_executable(my-nostalrius ${my-nostalrius_SRC})
 
 include_directories(${MYSQL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${PUGIXML_INCLUDE_DIR} ${GMP_INCLUDE_DIR})
-target_link_libraries(my-nostalrius ${MYSQL_CLIENT_LIBS} ${LUA_LIBRARIES} ${Boost_LIBRARIES} ${PUGIXML_LIBRARIES} ${GMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(my-nostalrius ${MYSQL_CLIENT_LIBS} ${LUA_LIBRARIES} ${Boost_LIBRARIES} ${Boost_FILESYSTEM_LIBRARIES} ${PUGIXML_LIBRARIES} ${GMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(my-nostalrius PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "src/otpch.h")
 set_target_properties(my-nostalrius PROPERTIES COTIRE_ADD_UNITY_BUILD FALSE)

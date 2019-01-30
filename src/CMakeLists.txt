@@ -7,7 +7,6 @@ set(my-nostalrius_SRC
 	${CMAKE_CURRENT_LIST_DIR}/behaviourdatabase.cpp
 	${CMAKE_CURRENT_LIST_DIR}/chat.cpp
 	${CMAKE_CURRENT_LIST_DIR}/combat.cpp
-	${CMAKE_CURRENT_LIST_DIR}/commands.cpp
 	${CMAKE_CURRENT_LIST_DIR}/condition.cpp
 	${CMAKE_CURRENT_LIST_DIR}/configmanager.cpp
 	${CMAKE_CURRENT_LIST_DIR}/connection.cpp

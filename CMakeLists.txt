@@ -5,51 +5,48 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 project(tfs)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 include(cotire)
 
-add_compile_options(-Wall -Werror -pipe -fvisibility=hidden)
-
-set(CMAKE_CXX_FLAGS_PERFORMANCE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
+# Initialize CXXFLAGS.
+set(CMAKE_CXX_FLAGS                "-Wall -Werror -pipe")
+set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE        "-Ofast -march=native -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 
 if (CMAKE_COMPILER_IS_GNUCXX)
-    add_compile_options(-fno-strict-aliasing)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
 endif()
 
 include(FindCXX11)
-include(FindLTO)
 
 # Find packages.
-find_package(Crypto++ REQUIRED)
+find_package(GMP REQUIRED)
 find_package(PugiXML REQUIRED)
+find_package(LuaJIT)
 find_package(MySQL)
 find_package(Threads)
 
-# Selects LuaJIT if user defines or auto-detected
-if(DEFINED USE_LUAJIT AND NOT USE_LUAJIT)
-    set(FORCE_LUAJIT ${USE_LUAJIT})
-else()
-    find_package(LuaJIT)
-    set(FORCE_LUAJIT ${LuaJIT_FOUND})
-endif()
-option(USE_LUAJIT "Use LuaJIT" ${FORCE_LUAJIT})
+option(USE_LUAJIT "Use LuaJIT" ${LUAJIT_FOUND})
 
-if(FORCE_LUAJIT)
+if(USE_LUAJIT)
+    find_package(LuaJIT REQUIRED)
     if(APPLE)
       set(CMAKE_EXE_LINKER_FLAGS "-pagezero_size 10000 -image_base 100000000")
     endif()
 else()
-    find_package(Lua REQUIRED)
+    find_package(Lua)
 endif()
 
-find_package(Boost 1.53.0 COMPONENTS system iostreams REQUIRED)
+find_package(Boost 1.53.0 COMPONENTS system REQUIRED)
 
-add_subdirectory(src)
+include(src/CMakeLists.txt)
 add_executable(tfs ${tfs_SRC})
 
-include_directories(${MYSQL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${PUGIXML_INCLUDE_DIR} ${Crypto++_INCLUDE_DIR})
-target_link_libraries(tfs ${MYSQL_CLIENT_LIBS} ${LUA_LIBRARIES} ${Boost_LIBRARIES} ${PUGIXML_LIBRARIES} ${Crypto++_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+include_directories(${MYSQL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${PUGIXML_INCLUDE_DIR} ${GMP_INCLUDE_DIR})
+target_link_libraries(tfs ${MYSQL_CLIENT_LIBS} ${LUA_LIBRARIES} ${Boost_LIBRARIES} ${PUGIXML_LIBRARIES} ${GMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(tfs PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "src/otpch.h")
 set_target_properties(tfs PROPERTIES COTIRE_ADD_UNITY_BUILD FALSE)

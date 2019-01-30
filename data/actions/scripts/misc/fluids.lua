@@ -37,8 +37,18 @@ function onUse(player, item, fromPosition, target, toPosition)
 			return true
 		end
 	end
-	
-	if target:isCreature() then
+	if (configManager.getBoolean(configKeys.UH_TRAP)) then
+		local tile = Tile(toPosition)
+		local creature = tile:getBottomCreature()
+		if creature and creature:isPlayer() then
+			target = creature
+		end
+	else
+		-- monsters do not use mana also I do not know if you can use life fluid on monsters
+		-- if you can just want to use life fluids on monster then change isPlayer to isCreature
+		target = target:isPlayer() and target
+	end
+	if target then
 		if item:getFluidType() == FLUID_NONE then
 			player:sendCancelMessage("It is empty.")
 		else
@@ -48,6 +58,10 @@ function onUse(player, item, fromPosition, target, toPosition)
 			elseif self and item:getFluidType() == FLUID_SLIME then
 				player:addCondition(slime)
 			elseif item:getFluidType() == FLUID_MANAFLUID then
+				if target:isMonster() then
+					player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
+					return false
+				end
 				target:addMana(math.random(50, 100))
 				target:getPosition():sendMagicEffect(CONST_ME_MAGIC_BLUE)
 			elseif item:getFluidType() == FLUID_LIFEFLUID then

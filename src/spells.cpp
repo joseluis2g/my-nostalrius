@@ -686,9 +686,11 @@ bool Spell::playerRuneSpellCheck(Player* player, const Position& toPos)
 		g_game.addMagicEffect(player->getPosition(), CONST_ME_POFF);
 		return false;
 	}
-
-	const Creature* topVisibleCreature = tile->getTopCreature();
-	if (blockingCreature && topVisibleCreature) {
+	const Creature* visibleCreature = tile->getTopCreature();
+	if (g_config.getBoolean(ConfigManager::UH_TRAP)) {
+		visibleCreature = tile->getBottomCreature();
+	}
+	if (blockingCreature && visibleCreature) {
 		player->sendCancelMessage(RETURNVALUE_NOTENOUGHROOM);
 		g_game.addMagicEffect(player->getPosition(), CONST_ME_POFF);
 		return false;
@@ -698,14 +700,14 @@ bool Spell::playerRuneSpellCheck(Player* player, const Position& toPos)
 		return false;
 	}
 
-	if (needTarget && !topVisibleCreature) {
+	if (needTarget && !visibleCreature) {
 		player->sendCancelMessage(RETURNVALUE_CANONLYUSETHISRUNEONCREATURES);
 		g_game.addMagicEffect(player->getPosition(), CONST_ME_POFF);
 		return false;
 	}
 
-	if (aggressive && needTarget && topVisibleCreature && player->hasSecureMode()) {
-		const Player* targetPlayer = topVisibleCreature->getPlayer();
+	if (aggressive && needTarget && visibleCreature && player->hasSecureMode()) {
+		const Player* targetPlayer = visibleCreature->getPlayer();
 		if (targetPlayer && targetPlayer != player && player->getSkullClient(targetPlayer) == SKULL_NONE && !Combat::isInPvpZone(player, targetPlayer)) {
 			player->sendCancelMessage(RETURNVALUE_TURNSECUREMODETOATTACKUNMARKEDPLAYERS);
 			g_game.addMagicEffect(player->getPosition(), CONST_ME_POFF);
@@ -1816,6 +1818,9 @@ bool RuneSpell::executeUse(Player* player, Item* item, const Position&, Thing* t
 				Tile* toTile = g_game.map.getTile(toPosition);
 				if (toTile) {
 					const Creature* visibleCreature = toTile->getTopCreature();
+					if (g_config.getBoolean(ConfigManager::UH_TRAP)) {
+						visibleCreature = toTile->getBottomCreature();
+					}
 					if (visibleCreature) {
 						var.number = visibleCreature->getID();
 					}

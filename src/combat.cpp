@@ -884,7 +884,7 @@ bool Combat::closeAttack(Creature* attacker, Creature* target, fightMode_t fight
 		if (poison) {
 			int32_t randTest = rand();
 
-			if (hit || -totalDamage > defense && (randTest == 5 * (randTest / 5))) {
+			if (hit || ((-totalDamage > defense) && (randTest == 5 * (randTest / 5)))) {
 				poison = normal_random(poison / 2, poison);
 				if (poison) {
 					ConditionDamage* condition = static_cast<ConditionDamage*>(Condition::createCondition(CONDITIONID_COMBAT, CONDITION_POISON, 0, 0));

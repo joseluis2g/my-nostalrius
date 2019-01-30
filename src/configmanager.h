@@ -41,6 +41,7 @@ class ConfigManager
 			TELEPORT_NEWBIES,
 			STACK_CUMULATIVES,
 			BLOCK_HEIGHT,
+			DROP_ITEMS,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};

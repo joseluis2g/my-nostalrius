@@ -2005,47 +2005,55 @@ void Monster::updateLookDirection()
 			Direction dir = getDirection();
 			if (offsetx < 0 && offsety < 0) {
 				if (offsetx == -1 && offsety == -1) {
-					if (dir == DIRECTION_NORTH) {
+					if (dir != DIRECTION_WEST) {
 						newDir = DIRECTION_WEST;
 					}
 				}
 				if (dir == DIRECTION_SOUTH) {
 					newDir = DIRECTION_WEST;
+				} else if (dir == DIRECTION_NORTH) {
+					newDir = DIRECTION_WEST;
 				} else if (dir == DIRECTION_EAST) {
-					newDir = DIRECTION_NORTH;
+					newDir = DIRECTION_WEST;
 				}
 			} else if (offsetx < 0 && offsety > 0) {
 				if (offsetx == -1 && offsety == 1) {
-					if (dir == DIRECTION_SOUTH) {
+					if (dir != DIRECTION_WEST) {
 						newDir = DIRECTION_WEST;
 					}
 				}
 				if (dir == DIRECTION_NORTH) {
 					newDir = DIRECTION_WEST;
+				} else if (dir == DIRECTION_SOUTH) {
+					newDir = DIRECTION_WEST;
 				} else if (dir == DIRECTION_EAST) {
-					newDir = DIRECTION_SOUTH;
+					newDir = DIRECTION_WEST;
 				}
 			} else if (offsetx > 0 && offsety < 0) {
 				if (offsetx == 1 && offsety == -1) {
-					if (dir == DIRECTION_NORTH) {
+					if (dir != DIRECTION_EAST) {
 						newDir = DIRECTION_EAST;
 					}
 				}
 				if (dir == DIRECTION_SOUTH) {
 					newDir = DIRECTION_EAST;
+				} else if (dir == DIRECTION_NORTH) {
+					newDir = DIRECTION_EAST;
 				} else if (dir == DIRECTION_WEST) {
-					newDir = DIRECTION_NORTH;
+					newDir = DIRECTION_EAST;
 				}
 			} else {
 				if (offsetx == 1 && offsety == 1) {
-					if (dir == DIRECTION_SOUTH) {
+					if (dir != DIRECTION_EAST) {
 						newDir = DIRECTION_EAST;
 					}
 				}
 				if (dir == DIRECTION_NORTH) {
 					newDir = DIRECTION_EAST;
+				} else if (dir == DIRECTION_SOUTH) {
+					newDir = DIRECTION_EAST;
 				} else if (dir == DIRECTION_WEST) {
-					newDir = DIRECTION_SOUTH;
+					newDir = DIRECTION_EAST;
 				}
 			}
 		}

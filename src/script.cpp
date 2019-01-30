@@ -59,7 +59,7 @@ void ScriptReader::nextToken()
 
 	if (this->RecursionDepth == -1)
 	{
-		error("ScriptReader::nextToken: Kein Skript zum Lesen ge÷ffnet.\n");
+		error("ScriptReader::nextToken: Kein Skript zum Lesen geffnet.\n");
 	LABEL_30:
 		this->Token = ENDOFFILE;
 		return;
@@ -156,7 +156,7 @@ LABEL_3:
 			{
 				if (fclose(this->File[v7]))
 				{
-					printf("ScriptReader::close: Fehler %d beim Schlie¯en der Datei.\n", RecursionDepth);
+					printf("ScriptReader::close: Fehler %d beim Schlieen der Datei.\n", RecursionDepth);
 				}
 				--this->RecursionDepth;
 			}

@@ -36,6 +36,7 @@
 #include "bed.h"
 #include "scheduler.h"
 #include "databasetasks.h"
+#include "movement.h"
 
 extern ConfigManager g_config;
 extern Actions* g_actions;
@@ -45,6 +46,9 @@ extern Spells* g_spells;
 extern Vocations g_vocations;
 extern GlobalEvents* g_globalEvents;
 extern Events* g_events;
+extern CreatureEvents* g_creatureEvents;
+extern Monsters g_monsters;
+extern MoveEvents* g_moveEvents;
 
 Game::~Game()
 {
@@ -651,6 +655,13 @@ void Game::playerMoveCreature(Player* player, Creature* movingCreature, const Po
 
 	player->setNextActionTask(nullptr);
 
+	if (g_config.getBoolean(ConfigManager::BLOCK_HEIGHT)) {
+		if (toTile->getHeight() > 1) {
+			player->sendCancelMessage(RETURNVALUE_NOTPOSSIBLE);
+			return;
+		}
+	}
+
 	if (!Position::areInRange<1, 1, 0>(movingCreatureOrigPos, player->getPosition())) {
 		//need to walk to the creature first before moving it
 		std::forward_list<Direction> listDir;
@@ -746,11 +757,36 @@ ReturnValue Game::internalMoveCreature(Creature* creature, Direction direction, 
 		}
 	}
 
+	ReturnValue ret = RETURNVALUE_NOTPOSSIBLE;
 	Tile* toTile = map.getTile(destPos);
-	if (!toTile) {
-		return RETURNVALUE_NOTPOSSIBLE;
+
+	Tile* toPos = map.getTile(destPos.x, destPos.y, destPos.z);
+	Tile* fromPos = map.getTile(currentPos.x, currentPos.y, currentPos.z);
+	
+	if (g_config.getBoolean(ConfigManager::BLOCK_HEIGHT)) {
+		if (toTile) {
+			if (currentPos.z > destPos.z && toPos->getHeight() > 1);
+			// not possible
+			else if ((((toPos->getHeight() - fromPos->getHeight()) < 2)) ||
+				(fromPos->hasHeight(3) && (currentPos.z == destPos.z)) ||
+				((currentPos.z < destPos.z) && (toPos->hasHeight(3) && (fromPos->getHeight() < 2))))
+				ret = internalMoveCreature(*creature, *toTile, flags);
+		}
+
+		if (ret != RETURNVALUE_NOERROR) {
+			if (Player* player = creature->getPlayer()) {
+				player->sendCancelMessage(ret);
+				player->sendCancelWalk();
+			}
+		}
+
+		return ret;
+	} else {
+		if (!toTile) {
+			return RETURNVALUE_NOTPOSSIBLE;
+		}
+		return internalMoveCreature(*creature, *toTile, flags);
 	}
-	return internalMoveCreature(*creature, *toTile, flags);
 }
 
 ReturnValue Game::internalMoveCreature(Creature& creature, Tile& toTile, uint32_t flags /*= 0*/)
@@ -3807,8 +3843,8 @@ void Game::getWorldLightInfo(LightInfo& lightInfo) const
 
 void Game::shutdown()
 {
+	saveGameState();
 	std::cout << "Shutting down..." << std::flush;
-
 	g_scheduler.shutdown();
 	g_databaseTasks.shutdown();
 	g_dispatcher.shutdown();
@@ -4493,5 +4529,64 @@ void Game::removeBedSleeper(uint32_t guid)
 	auto it = bedSleepersMap.find(guid);
 	if (it != bedSleepersMap.end()) {
 		bedSleepersMap.erase(it);
+	}
+}
+
+bool Game::reload(ReloadTypes_t reloadType)
+{
+	switch (reloadType) {
+		case RELOAD_TYPE_ACTIONS: return g_actions->reload();
+		case RELOAD_TYPE_CHAT: return g_chat->load();
+		case RELOAD_TYPE_CONFIG: return g_config.reload();
+		case RELOAD_TYPE_CREATURESCRIPTS: return g_creatureEvents->reload();
+		case RELOAD_TYPE_EVENTS: return g_events->load();
+		case RELOAD_TYPE_GLOBALEVENTS: return g_globalEvents->reload();
+		case RELOAD_TYPE_ITEMS: return Item::items.reload();
+		case RELOAD_TYPE_MONSTERS: return g_monsters.reload();
+		case RELOAD_TYPE_MOVEMENTS: return g_moveEvents->reload();
+		case RELOAD_TYPE_NPCS: {
+			Npcs::reload();
+			return true;
+		}
+		case RELOAD_TYPE_RAIDS: return raids.reload() && raids.startup();
+
+		case RELOAD_TYPE_SPELLS: {
+			if (!g_spells->reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload spells." << std::endl;
+				std::terminate();
+			} else if (!g_monsters.reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload monsters." << std::endl;
+				std::terminate();
+			}
+			return true;
+		}
+
+		case RELOAD_TYPE_TALKACTIONS: return g_talkActions->reload();
+
+		default: {
+			if (!g_spells->reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload spells." << std::endl;
+				std::terminate();
+				return false;
+			} else if (!g_monsters.reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload monsters." << std::endl;
+				std::terminate();
+				return false;
+			}
+
+			g_actions->reload();
+			g_config.reload();
+			g_creatureEvents->reload();
+			g_monsters.reload();
+			g_moveEvents->reload();
+			Npcs::reload();
+			raids.reload() && raids.startup();
+			g_talkActions->reload();
+			Item::items.reload();
+			g_globalEvents->reload();
+			g_events->load();
+			g_chat->load();
+			return true;
+		}
 	}
 }

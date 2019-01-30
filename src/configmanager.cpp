@@ -77,6 +77,7 @@ bool ConfigManager::load()
 	boolean[CONVERT_UNSAFE_SCRIPTS] = getGlobalBoolean(L, "convertUnsafeScripts", true);
 	boolean[TELEPORT_NEWBIES] = getGlobalBoolean(L, "teleportNewbies", true);
 	boolean[STACK_CUMULATIVES] = getGlobalBoolean(L, "autoStackCumulatives", false);
+	boolean[BLOCK_HEIGHT] = getGlobalBoolean(L, "blockHeight", false);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");

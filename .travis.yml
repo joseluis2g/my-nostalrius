@@ -5,9 +5,8 @@ compiler:
   - clang
   - gcc
 env:
-  matrix:
-    - LUAJIT=OFF
-    - LUAJIT=ON
+  - LUAJIT=OFF
+  - LUAJIT=ON
 cache: apt
 addons:
   apt:
@@ -15,22 +14,11 @@ addons:
       - libboost-dev
       - libboost-system-dev
       - libboost-filesystem-dev
-      - libboost-iostreams-dev
-      - libcrypto++-dev
       - liblua5.2-dev
       - libluajit-5.1-dev
       - libmysqlclient-dev
       - libpugixml-dev
-  coverity_scan:
-    project:
-      name: "joseluis2g/my-nostalrius"
-      description: "A free and open-source MMORPG server emulator written in C++"
-    build_command_prepend: "mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DUSE_LUAJIT=${LUAJIT} .."
-    build_command: "make -j2"
-    branch_pattern: coverity_scan
-before_install:
-  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 before_script:
   - mkdir build && cd build
   - cmake -DCMAKE_BUILD_TYPE=Release -DUSE_LUAJIT=${LUAJIT} ..
-script: if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then make -j2; fi
+script: make -j2

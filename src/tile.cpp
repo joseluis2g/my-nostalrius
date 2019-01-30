@@ -242,6 +242,16 @@ Creature* Tile::getTopCreature() const
 	return nullptr;
 }
 
+Creature* Tile::getBottomCreatureUH() const
+{
+	if (const CreatureVector* creatures = getCreatures()) {
+		if (!creatures->empty()) {
+			return *creatures->rbegin();
+		}
+	}
+	return nullptr;
+}
+
 const Creature* Tile::getBottomCreature() const
 {
 	if (const CreatureVector* creatures = getCreatures()) {
@@ -272,6 +282,35 @@ Creature* Tile::getTopVisibleCreature(const Creature* creature) const
 					const Player* player = tileCreature->getPlayer();
 					if (!player || !player->isInGhostMode()) {
 						return tileCreature;
+					}
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+Creature* Tile::getBottomVisibleCreatureUH(const Creature* creature) const
+{
+	if (const CreatureVector* creatures = getCreatures()) {
+		if (creature) {
+			const Player* player = creature->getPlayer();
+			if (player && player->isAccessPlayer()) {
+				return getBottomCreatureUH();
+			}
+
+			for (auto it = creatures->rbegin(), end = creatures->rend(); it != end; ++it) {
+				if (creature->canSeeCreature(*it)) {
+					return *it;
+				}
+			}
+		}
+		else {
+			for (auto it = creatures->rbegin(), end = creatures->rend(); it != end; ++it) {
+				if (!(*it)->isInvisible()) {
+					const Player* player = (*it)->getPlayer();
+					if (!player || !player->isInGhostMode()) {
+						return *it;
 					}
 				}
 			}

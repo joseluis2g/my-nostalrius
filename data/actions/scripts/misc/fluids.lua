@@ -49,6 +49,10 @@ function onUse(player, item, fromPosition, target, toPosition)
 		target = target:isPlayer() and target
 	end
 	if target then
+		if target:isNpc() then
+			player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
+			return true
+		end
 		if item:getFluidType() == FLUID_NONE then
 			player:sendCancelMessage("It is empty.")
 		else
@@ -60,7 +64,7 @@ function onUse(player, item, fromPosition, target, toPosition)
 			elseif item:getFluidType() == FLUID_MANAFLUID then
 				if target:isMonster() then
 					player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
-					return false
+					return true
 				end
 				target:addMana(math.random(50, 100))
 				target:getPosition():sendMagicEffect(CONST_ME_MAGIC_BLUE)

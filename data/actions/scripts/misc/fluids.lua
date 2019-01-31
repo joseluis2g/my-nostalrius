@@ -48,11 +48,7 @@ function onUse(player, item, fromPosition, target, toPosition)
 		-- if you can just want to use life fluids on monster then change isPlayer to isCreature
 		target = target:isPlayer() and target
 	end
-	if target then
-		if target:isNpc() then
-			player:sendCancelMessage(RETURNVALUE_NOTPOSSIBLE)
-			return true
-		end
+	if target:isCreature() and target == player then
 		if item:getFluidType() == FLUID_NONE then
 			player:sendCancelMessage("It is empty.")
 		else
@@ -85,9 +81,9 @@ function onUse(player, item, fromPosition, target, toPosition)
 			
 			local message = messages[item:getFluidType()]
 			if message then
-				target:say(message, TALKTYPE_MONSTER_SAY)
+				target:say(message, TALKTYPE_SAY)
 			else
-				target:say("Gulp.", TALKTYPE_MONSTER_SAY)
+				target:say("Gulp.", TALKTYPE_SAY)
 			end
 			item:transform(item:getId(), FLUID_NONE)
 		end
